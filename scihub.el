@@ -51,7 +51,7 @@
   :prefix "scihub-"
   :group 'applications)
 
-(defcustom scihub-homepage "http://sci-hub.tw/"
+(defcustom scihub-homepage "https://sci-hub.tw/"
   "Sci-hub homepage.
 
 Use \\[scihub-homepage] to set it to an active Sci-Hub domain.
@@ -59,8 +59,9 @@ Use \\[scihub-homepage] to set it to an active Sci-Hub domain.
 See also `https://en.wikipedia.org/wiki/Sci-Hub' for updated domains."
   :type 'string
   :type '(choice
-          (const :tag "sci-hub.tw" "http://sci-hub.tw/")
+          (const :tag "sci-hub.tw" "https://sci-hub.tw/")
           (const :tag "sci-hub.se" "https://sci-hub.se/")
+          (const :tag "sci-hub.st" "https://sci-hub.st/")
           string)
   :group 'scihub)
 
