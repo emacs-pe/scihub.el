@@ -168,7 +168,7 @@ path where the PDF will be downloaded."
     (let* ((dom (with-current-buffer (current-buffer)
                   (goto-char (1+ url-http-end-of-headers))
                   (libxml-parse-html-region (point) (point-max))))
-           (save-link (dom-attr (assq 'a (nth 4 (assq 'ul (car (dom-by-id dom "buttons"))))) 'onclick)))
+           (save-link (dom-attr (dom-search dom (lambda (d) (and (stringp (caddr d)) (string-equal (caddr d) "⇣ save")))) 'onclick)))
       (if (not save-link)
           (signal 'scihub-not-found (list query))
         (let* ((url (string-remove-suffix "'" (string-remove-prefix "location.href='" save-link)))
