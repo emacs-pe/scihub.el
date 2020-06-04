@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/scihub.el
 ;; Keywords: convenience
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -31,6 +31,7 @@
 
 ;;; Code:
 (eval-when-compile
+  (require 'cl-lib)
   (require 'subr-x)
   (defvar url-request-data)
   (defvar url-request-method)
@@ -98,7 +99,7 @@ From the PDF specification 1.7:
     (string-equal (encode-coding-string header 'utf-8) "%PDF-")))
 
 (defun scihub-fetch-domains-lovescihub ()
-  "Fetch working Sci-Hub working domains for scihub using lovescihub.
+  "Fetch working Sci-Hub domains using lovescihub.
 
 See: `https://lovescihub.wordpress.com/'."
   (let* ((dom (with-current-buffer (url-retrieve-synchronously "https://lovescihub.wordpress.com/")
@@ -111,7 +112,7 @@ See: `https://lovescihub.wordpress.com/'."
              collect (dom-attr node 'href))))
 
 (defun scihub-fetch-domains-scihub_ck ()
-  "Fetch working Sci-Hub working domains for scihub using scihub_ck.
+  "Fetch working Sci-Hub domains using scihub_ck.
 
 See: `https://wadauk.github.io/scihub_ck/'."
   (let ((dom (with-current-buffer (url-retrieve-synchronously "https://wadauk.github.io/scihub_ck/")
