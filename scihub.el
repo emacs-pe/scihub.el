@@ -39,7 +39,6 @@
   (defvar url-request-extra-headers))
 
 (require 'dom)
-(require 'shr)
 (require 'url-parse)
 
 (declare-function mail-narrow-to-head "mail-parse")
@@ -107,7 +106,6 @@ See: `https://lovescihub.wordpress.com/'."
                 (goto-char (1+ url-http-end-of-headers))
                 (libxml-parse-html-region (point) (point-max))))
          (content (car (dom-by-class dom "entry-content"))))
-    (message (dom-text (nth 3 content)))
     (cl-loop for node in (dom-children (nth 5 content))
              when (eq (car-safe node) 'a)
              collect (dom-attr node 'href))))
@@ -126,12 +124,16 @@ See: `https://wadauk.github.io/scihub_ck/'."
   "Read captcha from Sci-Hub IMAGE-URL."
   (with-current-buffer (get-buffer-create "*scihub-captcha*")
     (let ((inhibit-read-only t)
-          (spec (with-current-buffer (url-retrieve-synchronously image-url)
+          (data (with-current-buffer (url-retrieve-synchronously image-url)
                   (goto-char (1+ url-http-end-of-headers))
-                  (shr-parse-image-data))))
+                  (buffer-substring (point) (point-max))))
+          (type (if (or (and (fboundp 'image-transforms-p)
+                             (image-transforms-p))
+                        (not (fboundp 'imagemagick-types)))
+                    nil
+                  'imagemagick)))
       (erase-buffer)
-      (shr-put-image spec nil)
-      (goto-char (point-min)))
+      (insert-image (create-image data type 'data-p)))
     (display-buffer (current-buffer))
     (prog1 (read-string "Enter captcha: ")
       (kill-buffer))))
