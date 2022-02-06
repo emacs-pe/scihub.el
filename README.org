@@ -1,0 +1,26 @@
+
+* Install
+** Doom
+
+In =packages.el=
+
+#+begin_src elisp
+(package! scihub :recipe (:host github :repo "emacs-pe/scihub.el"))
+#+end_src
+
+In =config.el=
+
+#+begin_src elisp
+(use-package! scihub
+ :init
+ (setq scihub-download-directory "~/papers/"
+       scihub-open-after-download t
+       scihub-fetch-domain 'scihub-fetch-domains-lovescihub))
+#+end_src
+
+* Usage
+
+Call =M-x scihub= to download and save (and open) a pdf. It is saved in =scihub-download-directory= and it is download from the scihub web stored in variable =scihub-homepage=.
+
+Do not assign the variable =scihub-homepage= manually, instead call =M-x scihub-homepage= (it is also a function).
+By default, a list of possible scihub webs is retrieved from web [[https://lovescihub.wordpress.com/][lovescihub]]. Other web can be used, e.g.  =(setq scihub-fetch-domain 'scihub-fetch-domains-scihub_ck)= to use [[https://wadauk.github.io/scihub_ck/][wadauk]].
