@@ -68,7 +68,7 @@ See also `https://en.wikipedia.org/wiki/Sci-Hub' for updated domains."
   :type '(directory :must-match t)
   :group 'scihub)
 
-(defcustom scihub-fetch-domain 'scihub-fetch-domains-lovescihub
+(defcustom scihub-fetch-domain #'scihub-fetch-domains-lovescihub
   "Function used to fetch active Sci-Hub domains."
   :type '(radio (function-item scihub-fetch-domains-lovescihub)
                 (function-item scihub-fetch-domains-scihub_ck)
@@ -161,11 +161,12 @@ See: `https://wadauk.github.io/scihub_ck/'."
          (file (and (not (string-blank-p name)) (expand-file-name name scihub-download-directory))))
     (if (and file (not (file-exists-p file))) file (read-file-name "Save to file: " scihub-download-directory name))))
 
-(defun scihub-fetch-callback (status query filename)
+(defun scihub-fetch-callback (status homepage query filename)
   "Callback for Sci-Hub, check whether url STATUS erred.
 
-QUERY is the initial query passed to `scihub', and FILENAME is the
-path where the PDF will be downloaded."
+HOMEPAGE is the Sci-Hub mirror used.  QUERY is the initial query
+passed to `scihub', and FILENAME is the path where the PDF will
+be downloaded."
   (if (plist-get status :error)
       (message (error-message-string (plist-get status :error)))
     (let* ((dom (with-current-buffer (current-buffer)
@@ -175,7 +176,9 @@ path where the PDF will be downloaded."
       (if (not save-link)
           (signal 'scihub-not-found (list query))
         (let* ((url (string-remove-suffix "'" (string-remove-prefix "location.href='" save-link)))
-               (pdf-url (if (string-match-p url-nonrelative-link url) url (concat "http:" url)))
+               (pdf-url (if (string-match-p url-nonrelative-link url)
+                            url
+                          (url-expand-file-name url homepage)))
                (pdf-file (or filename (scihub-url-filename pdf-url)))
                (potential-file (make-temp-name (expand-file-name "scihub" temporary-file-directory))))
           (url-copy-file pdf-url potential-file)
@@ -206,7 +209,7 @@ path where the PDF will be downloaded."
   (let ((url-request-method "POST")
         (url-request-data (url-build-query-string `(("request" ,query))))
         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded"))))
-    (url-retrieve scihub-homepage #'scihub-fetch-callback (list query filename))))
+    (url-retrieve scihub-homepage #'scihub-fetch-callback (list scihub-homepage query filename))))
 
 (provide 'scihub)
 ;;; scihub.el ends here
