@@ -46,7 +46,7 @@
 (declare-function url-http-parse-response "url-http")
 
 (defgroup scihub nil
-  "Sci-Hub integration"
+  "Sci-Hub integration."
   :prefix "scihub-"
   :group 'applications)
 
@@ -58,8 +58,10 @@ Use \\[scihub-homepage] to set it to an active Sci-Hub domain.
 See also `https://en.wikipedia.org/wiki/Sci-Hub' for updated domains."
   :type 'string
   :type '(choice
+          ;; Original Sci-Hub project mirrors https://sci-hub.ru/mirrors
           (const :tag "sci-hub.se" "https://sci-hub.se/")
           (const :tag "sci-hub.st" "https://sci-hub.st/")
+          (const :tag "sci-hub.ru" "https://sci-hub.ru/")
           string)
   :group 'scihub)
 
