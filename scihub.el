@@ -210,6 +210,7 @@ be downloaded."
                      (and current-prefix-arg (read-file-name "Save paper PDF to file: " scihub-download-directory))))
   (let ((url-request-method "POST")
         (url-request-data (url-build-query-string `(("request" ,query))))
+        (url-mime-language-string "en-US,en;q=0.5")
         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded"))))
     (url-retrieve scihub-homepage #'scihub-fetch-callback (list scihub-homepage query filename))))
 
