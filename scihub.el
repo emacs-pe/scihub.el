@@ -36,6 +36,7 @@
   (defvar url-request-data)
   (defvar url-request-method)
   (defvar url-http-end-of-headers)
+  (defvar url-http-response-status)
   (defvar url-request-extra-headers))
 
 (require 'dom)
@@ -50,7 +51,7 @@
   :prefix "scihub-"
   :group 'applications)
 
-(defcustom scihub-homepage "https://sci-hub.se/"
+(defcustom scihub-homepage "http://sci-hub.ru/"
   "Sci-hub homepage.
 
 Use \\[scihub-homepage] to set it to an active Sci-Hub domain.
@@ -70,10 +71,10 @@ See also `https://en.wikipedia.org/wiki/Sci-Hub' for updated domains."
   :type '(directory :must-match t)
   :group 'scihub)
 
-(defcustom scihub-fetch-domain #'scihub-fetch-domains-lovescihub
+(defcustom scihub-fetch-domain #'scihub-fetch-domains-sci-hub.pub
   "Function used to fetch active Sci-Hub domains."
   :type '(radio (function-item scihub-fetch-domains-lovescihub)
-                (function-item scihub-fetch-domains-scihub_ck)
+                (function-item scihub-fetch-domains-sci-hub.pub)
                 (function :tag "Function"))
   :group 'scihub)
 
@@ -81,6 +82,8 @@ See also `https://en.wikipedia.org/wiki/Sci-Hub' for updated domains."
   "Whether to open pdf after download."
   :type 'boolean
   :group 'scihub)
+
+(defconst scihub-user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 11_3_1 like Mac OS X) AppleWebKit/603.1.30 (KHTML, like Gecko) Version/10.0 Mobile/14E304 Safari/602.1")
 
 (define-error 'scihub-error "Unknown scihub error")
 (define-error 'scihub-not-found "Article not found" 'scihub-error)
@@ -99,27 +102,42 @@ From the PDF specification 1.7:
                   (buffer-string))))
     (string-equal (encode-coding-string header 'utf-8) "%PDF-")))
 
+(defun scihub--http-status-mirror (mirror)
+  "Return the HTTP status of a SciHub MIRROR."
+  (ignore-errors
+    (with-current-buffer (let ((url-request-method "POST")
+                               (url-request-extra-headers `(("User-Agent" . ,scihub-user-agent)))
+                               (url-request-data (url-build-query-string '(("request" "10.1145/2500365.2500590")))))
+                           (url-retrieve-synchronously mirror nil nil 10))
+      url-http-response-status)))
+
+(defvar scihub-fetch-domains-lovescihub nil)
 (defun scihub-fetch-domains-lovescihub ()
   "Fetch working Sci-Hub domains using lovescihub.
 
 See: `https://lovescihub.wordpress.com/'."
-  (let* ((dom (with-current-buffer (url-retrieve-synchronously "https://lovescihub.wordpress.com/")
-                (goto-char (1+ url-http-end-of-headers))
-                (libxml-parse-html-region (point) (point-max))))
-         (content (car (dom-by-class dom "entry-content"))))
-    (cl-loop for node in (dom-children (nth 5 content))
-             when (eq (car-safe node) 'a)
-             collect (dom-attr node 'href))))
+  (or scihub-fetch-domains-lovescihub
+      (setq scihub-fetch-domains-lovescihub
+            (let ((dom (with-current-buffer (url-retrieve-synchronously "https://lovescihub.wordpress.com/")
+                         (goto-char (1+ url-http-end-of-headers))
+                         (libxml-parse-html-region (point) (point-max)))))
+              (cl-loop for node in (dom-by-tag (nth 5 (car (dom-by-class dom "entry-content"))) 'a)
+                       for mirror = (dom-attr node 'href)
+                       collect (cons mirror (scihub--http-status-mirror mirror)))))))
 
-(defun scihub-fetch-domains-scihub_ck ()
-  "Fetch working Sci-Hub domains using scihub_ck.
+(defvar scihub-fetch-domains-sci-hub.pub nil)
+(defun scihub-fetch-domains-sci-hub.pub ()
+  "Fetch working Sci-Hub domains using sci-hub.pub.
 
-See: `https://wadauk.github.io/scihub_ck/'."
-  (let ((dom (with-current-buffer (url-retrieve-synchronously "https://wadauk.github.io/scihub_ck/")
-               (goto-char (1+ url-http-end-of-headers))
-               (libxml-parse-html-region (point) (point-max)))))
-    (cl-loop for div in (dom-by-class dom "eleven wide column")
-             collect (dom-attr (assq 'a div) 'href))))
+See: `https://www.sci-hub.pub/'."
+  (or scihub-fetch-domains-sci-hub.pub
+      (setq scihub-fetch-domains-sci-hub.pub
+            (let ((dom (with-current-buffer (url-retrieve-synchronously "https://www.sci-hub.pub/")
+                         (goto-char (1+ url-http-end-of-headers))
+                         (libxml-parse-html-region (point) (point-max)))))
+              (cl-loop for node in (dom-by-tag (dom-by-id dom "sites") 'a)
+                       for mirror = (dom-attr node 'href)
+                       collect (cons mirror (scihub--http-status-mirror mirror)))))))
 
 (defun scihub-read-catpcha (image-url)
   "Read captcha from Sci-Hub IMAGE-URL."
@@ -198,7 +216,15 @@ be downloaded."
 (defun scihub-homepage ()
   "Set a valid Sci-hub homepage."
   (interactive)
-  (let ((url (completing-read "Sci-Hub Domain: " (funcall scihub-fetch-domain) nil t)))
+  (let* ((completion-extra-properties
+          '(:annotation-function
+            (lambda (mirror)
+              (pcase-let ((`(,mirror . ,status) (assoc mirror (funcall scihub-fetch-domain))))
+                (concat " " (pcase status
+                              (`nil (propertize "DOWN"    'face 'error))
+                              (`200 (propertize "OK"      'face 'success))
+                              (_    (propertize "BLOCKED" 'face 'warning))))))))
+         (url (completing-read "Select mirror: " (funcall scihub-fetch-domain) nil t nil nil nil)))
     (if (yes-or-no-p "Save the domain for future sessions? ")
         (customize-save-variable 'scihub-homepage url)
       (customize-set-variable 'scihub-homepage url))))
@@ -211,7 +237,8 @@ be downloaded."
   (let ((url-request-method "POST")
         (url-request-data (url-build-query-string `(("request" ,query))))
         (url-mime-language-string "en-US,en;q=0.5")
-        (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded"))))
+        (url-request-extra-headers `(("User-Agent"   . ,scihub-user-agent)
+                                     ("Content-Type" . "application/x-www-form-urlencoded"))))
     (url-retrieve scihub-homepage #'scihub-fetch-callback (list scihub-homepage query filename))))
 
 (provide 'scihub)
