@@ -54,7 +54,7 @@ Note:
 See available Sci-hub mirrors on `https://sci-hub.ru/'."
   :type '(choice
           (const :tag "sci-hub.ru"  "https://sci-hub.ru/")
-          (const :tag "sci-hub.se"  "https://sci-hub.se/")
+          (const :tag "sci-hub.su"  "https://sci-hub.su/")
           (const :tag "sci-hub.st"  "https://sci-hub.st/")
           (const :tag "sci-hub.box" "https://sci-hub.box/")
           (const :tag "sci-hub.red" "https://sci-hub.red/")
@@ -103,13 +103,15 @@ be downloaded."
      (let* ((dom (with-current-buffer (current-buffer)
                    (goto-char (1+ url-http-end-of-headers))
                    (libxml-parse-html-region (point) (point-max))))
-            (url (dom-attr (dom-by-tag dom 'embed) 'src)))
-       (if (not url)
+            (path
+             (or (dom-attr (dom-elements dom 'name "citation_pdf_url") 'content)
+                 (dom-attr (dom-child-by-tag (dom-by-class dom "download") 'a) 'href))))
+       (if (not path)
            (signal 'scihub-not-found (list query))
          (make-directory scihub-download-directory t)
-         (let* ((pdf-url (if (string-prefix-p "//" url) (concat "https:" url) url))
+         (let* ((pdf-url (url-expand-file-name path homepage))
                 (pdf-file (or filename (scihub-url-filename pdf-url))))
-           (message "Saving %s..." pdf-file)
+           (message "Saving %s to %s..." pdf-url pdf-file)
            (url-copy-file pdf-url pdf-file)
            (when scihub-open-after-download
              (find-file-existing pdf-file))))))
